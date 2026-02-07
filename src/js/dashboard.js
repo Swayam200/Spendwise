@@ -1,5 +1,6 @@
 import { auth, onAuthStateChanged, signOut } from './firebase.js';
-
+import { LedgerService } from './LedgerService.js';
+createTransaction
 onAuthStateChanged(auth, (user) => {
     const userInfoEl = document.getElementById('user-id-display');
     if (!user) {
@@ -190,22 +191,36 @@ notificationSystem.show(message, type);
 }
 
 // Transaction Management
-function createTransaction(formData) {
-const category = window.categories[formData.type].find(c => c.name === formData.category);
-const transactionDate = formData.date ? new Date(formData.date) : new Date();
+// Updated to support Blockchain Hashing
+async function createTransaction(formData) {
+    const category = window.categories[formData.type].find(c => c.name === formData.category);
+    const transactionDate = formData.date ? new Date(formData.date) : new Date();
+    
+    // 1. Find the Hash of the most recent transaction (which is at index 0)
+    // If no transactions exist, use "0" (Genesis Hash)
+    const latestTx = window.transactions[0];
+    const prevHash = latestTx?.hash || "0";
 
-return {
-    id: Date.now(),
-    description: formData.description,
-    amount: parseFloat(formData.amount),
-    type: formData.type,
-    category: formData.category,
-    categoryIcon: category.icon,
-    categoryColor: category.color,
-    date: transactionDate.toISOString(),
-    createdAt: new Date().toISOString(),
-    receipt: null
-};
+    const newTx = {
+        id: Date.now(),
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        type: formData.type,
+        category: formData.category,
+        categoryIcon: category.icon,
+        categoryColor: category.color,
+        date: transactionDate.toISOString(),
+        createdAt: new Date().toISOString(),
+        receipt: null,
+        prevHash: prevHash, // Store link to previous
+        hash: null          // Placeholder
+    };
+
+    // 2. Generate the Hash for THIS transaction
+    const ledgerService = new LedgerService();
+    newTx.hash = await ledgerService.generateHash(newTx, prevHash);
+
+    return newTx;
 }
 
 function updateTransactionsList() {
@@ -698,7 +713,7 @@ typeSelect?.dispatchEvent(new Event('change'));
 setDefaultDateTime();
 }
 
-function handleTransactionSubmit(e) {
+async function handleTransactionSubmit(e) {
 e.preventDefault();
 const formData = {
     description: document.getElementById('description').value,
@@ -714,7 +729,7 @@ if (!formData.description || !formData.amount || !formData.category || !formData
 }
 
 checkBudgetLimits(formData);
-const transaction = createTransaction(formData);
+const transaction = await createTransaction(formData);
 window.transactions.unshift(transaction);
 localStorage.setItem('transactions', JSON.stringify(window.transactions));
 
@@ -1978,6 +1993,31 @@ exportMenu?.querySelectorAll('button').forEach(button => {
      exportMenu.classList.add('hidden');
  });
 });
+// --- BLOCKCHAIN VERIFICATION ---
+    const verifyBtn = document.getElementById('verify-ledger-btn');
+    verifyBtn?.addEventListener('click', async () => {
+        const ledgerService = new LedgerService();
+        const originalText = verifyBtn.innerHTML;
+        verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Auditing...';
+        
+        const result = await ledgerService.verifyChain(window.transactions);
+        
+        if (result.valid) {
+            verifyBtn.className = "text-xs flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded border border-green-200 transition-all";
+            verifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> Ledger Verified';
+            showNotification("Blockchain Verified: All data is authentic.", "success");
+        } else {
+            verifyBtn.className = "text-xs flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded border border-red-200 animate-pulse transition-all";
+            verifyBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> TAMPERING DETECTED';
+            showNotification(`Security Alert! Transaction at index ${result.errorIndex} has been modified externally!`, "error");
+        }
+        
+        // Reset button after 3 seconds
+        setTimeout(() => {
+            verifyBtn.className = "text-xs flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-600 rounded hover:bg-gray-300 transition-colors";
+            verifyBtn.innerHTML = originalText || '<i class="fas fa-shield-alt"></i> Verify Integrity';
+        }, 3000);
+    });
 }
 
 // Add export functionality
