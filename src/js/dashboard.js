@@ -1,4 +1,7 @@
 import { auth, onAuthStateChanged, signOut } from './firebase.js';
+
+import { VoiceService } from './VoiceService.js';
+
 import { LedgerService } from './LedgerService.js';
 createTransaction
 onAuthStateChanged(auth, (user) => {
@@ -1992,6 +1995,44 @@ exportMenu?.querySelectorAll('button').forEach(button => {
      exportTransactions(format);
      exportMenu.classList.add('hidden');
  });
+});
+// --- VOICE LOGGING SETUP ---
+const voiceBtn = document.getElementById('voice-btn');
+const voiceStatus = document.getElementById('voice-status');
+const voiceService = new VoiceService();
+
+voiceBtn?.addEventListener('click', () => {
+    voiceStatus.classList.remove('hidden');
+    voiceStatus.textContent = "Listening... Speak naturally (e.g., 'Lunch for 150')";
+    
+    voiceService.start(
+        (transcript, data) => {
+            // On Success
+            voiceStatus.textContent = `Heard: "${transcript}"`;
+            setTimeout(() => voiceStatus.classList.add('hidden'), 3000);
+            
+            // Populate Form
+            if (data.amount) document.getElementById('amount').value = data.amount;
+            if (data.category) {
+                const categorySelect = document.getElementById('category');
+                document.getElementById('type').value = 'expense';
+                document.getElementById('type').dispatchEvent(new Event('change')); 
+                
+                setTimeout(() => {
+                    categorySelect.value = data.category;
+                }, 50);
+            }
+            if (data.description) document.getElementById('description').value = data.description;
+            if (data.date) document.getElementById('transaction-date').value = data.date;
+
+            showNotification('Voice command parsed successfully!');
+        },
+        (error) => {
+            // On Error
+            voiceStatus.textContent = "Error: " + error;
+            showNotification('Voice recognition failed. Try again.', 'error');
+        }
+    );
 });
 // --- BLOCKCHAIN VERIFICATION ---
     const verifyBtn = document.getElementById('verify-ledger-btn');
