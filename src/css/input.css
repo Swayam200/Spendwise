@@ -1208,3 +1208,29 @@ footer .social-links a:hover {
     background-color: blue;
     transform: scale(1.1);
 }
+/* Testimonial Section Dark Mode */
+[data-theme="dark"] .testimonial-card {
+    background-color: var(--bg-secondary);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Override the existing dark text color to be light */
+[data-theme="dark"] .testimonial-text {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile-info h4 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .profile-info .role {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .profile {
+    border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .profile-img {
+    border-color: var(--bg-secondary);
+}
